@@ -1,0 +1,28 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "/Users/YOURNAME/.claude/englishlint/scripts/statusline.py"
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/YOURNAME/.claude/englishlint/scripts/on-stop.py"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/YOURNAME/.claude/englishlint/scripts/on-prompt.py"
+          }
+        ]
+      }
+    ]
+  }
+}

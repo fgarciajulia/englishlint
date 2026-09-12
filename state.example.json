@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "streak": { "count": 0, "last_active_date": null },
+  "points": { "total": 0 },
+  "cards": {
+    "teh__the": {
+      "wrong": "teh",
+      "correct": "the",
+      "rule": "typo comun",
+      "box": 1,
+      "next_review": "2026-09-13",
+      "times_seen": 1,
+      "introduced": true,
+      "source": "new"
+    }
+  },
+  "migration": {
+    "queue": [],
+    "batch_size": 8,
+    "last_import_date": "2026-09-12"
+  }
+}
