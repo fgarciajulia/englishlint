@@ -19,11 +19,18 @@ from pathlib import Path
 STATE_PATH = Path.home() / ".claude" / "englishlint" / "state.json"
 BOX_INTERVAL_DAYS = {1: 1, 2: 3, 3: 7, 4: 14, 5: 30}
 
+# Anchored to the WHOLE line (optionally wrapped in a single pair of
+# backticks) so a tag only fires when it is its own line, never when it's
+# quoted mid-sentence as an example (e.g. "the tag looks like `EnglishLint:
+# mistake | wrong | correct | rule`" would NOT match — no text may precede
+# or follow it on that line beyond optional backticks/whitespace).
 MISTAKE_RE = re.compile(
-    r"EnglishLint:\s*mistake\s*\|\s*(?P<wrong>[^|]+?)\s*\|\s*(?P<correct>[^|]+?)\s*\|\s*(?P<rule>[^|\n]+)"
+    r"^\s*`?EnglishLint:\s*mistake\s*\|\s*(?P<wrong>[^|]+?)\s*\|\s*(?P<correct>[^|]+?)\s*\|\s*(?P<rule>[^|`]+?)`?\s*$",
+    re.MULTILINE,
 )
 REVIEW_RE = re.compile(
-    r"EnglishLint:\s*review\s*\|\s*(?P<id>[a-z0-9_]+)\s*\|\s*(?P<outcome>pass|fail)"
+    r"^\s*`?EnglishLint:\s*review\s*\|\s*(?P<id>[a-z0-9_]+)\s*\|\s*(?P<outcome>pass|fail)`?\s*$",
+    re.MULTILINE,
 )
 
 
