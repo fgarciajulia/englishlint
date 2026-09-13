@@ -15,7 +15,7 @@ import subprocess
 import sys
 from datetime import date
 
-from _common import STATE_PATH
+from _common import STATE_PATH, slugify
 
 ENGLISHLINT_DIR = STATE_PATH.parent
 
@@ -231,7 +231,8 @@ def main() -> int:
     points = state.get("points", {}).get("total", 0)
     today = date.today().isoformat()
 
-    cards = state.get("cards", {}).values()
+    cards_by_id = state.get("cards", {})
+    cards = cards_by_id.values()
     due = [
         card
         for card in cards
@@ -272,10 +273,20 @@ def main() -> int:
     if visible_len(report_line) <= budget:
         lines.append(report_line)
 
-    items = [diff_render(c["wrong"], c["correct"]) for c in due]
+    def with_box(text: str, box) -> str:
+        return f"{text}{AMBER}·b{box}{RESET}"
+
+    items = [with_box(diff_render(c["wrong"], c["correct"]), c["box"]) for c in due]
     for item in state.get("recent", []):
         text = diff_render(item["wrong"], item["correct"])
-        items.append(f"↺{text}" if item.get("kind") == "relapse" else text)
+        if item.get("kind") == "relapse":
+            text = f"↺{text}"
+        # recent entries don't store their own box (see push_recent in
+        # on-stop.py) — look up the card's CURRENT box instead of a stale
+        # catch-time snapshot, since it may have advanced or relapsed since.
+        card_id = f"{slugify(item['wrong'])}__{slugify(item['correct'])}"
+        box = cards_by_id.get(card_id, {}).get("box", "?")
+        items.append(with_box(text, box))
 
     lines.extend(build_grid(items, budget, list_budget(), MIN_LIST_LINES, "  · "))
 
