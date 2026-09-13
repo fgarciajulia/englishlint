@@ -83,7 +83,7 @@ def main() -> int:
 
     reviews_today = state.get("reviews_today", {})
     if reviews_today.get("date") == today:
-        for r in reviews_today.get("passed", [])[:PASSED_MAX]:
+        for r in reviews_today.get("passed", [])[-PASSED_MAX:]:
             lines.append(f"  {GREEN}✓ aprendiste:{RESET} {r['correct']}")
 
     print("\n".join(lines[:10]))
