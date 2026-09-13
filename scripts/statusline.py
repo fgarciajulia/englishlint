@@ -263,6 +263,15 @@ def main() -> int:
             break  # narrower terminal: keep the highest-priority columns only
         header += addition
 
+    minimized = state.get("ui_minimized")
+    hint = f"  {GREY}({'!elmax to restore' if minimized else '!elmin to minimize'}){RESET}"
+    if visible_len(header) + visible_len(hint) <= budget:
+        header += hint
+
+    if minimized:
+        print(header)
+        return 0
+
     # Claude Code's statusline strips/breaks OSC 8 hyperlinks (confirmed:
     # the identical escape sequence IS clickable as plain tool output, just
     # not from here) — so this is plain selectable text, not a fake link.

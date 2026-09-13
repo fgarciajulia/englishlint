@@ -6,6 +6,7 @@ each running script's own directory to sys.path, so on-stop.py/on-prompt.py/
 statusline.py/migrate.py (all in this same scripts/ folder) can `import
 _common` regardless of current working directory or how they're invoked.
 """
+import json
 import re
 from pathlib import Path
 
@@ -33,3 +34,19 @@ def default_state() -> dict:
         "reviews_today": {"date": None, "passed": []},
         "history": [],
     }
+
+
+def load_state() -> dict:
+    if STATE_PATH.exists():
+        try:
+            return json.loads(STATE_PATH.read_text())
+        except json.JSONDecodeError:
+            pass
+    return default_state()
+
+
+def save_state(state: dict) -> None:
+    STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = STATE_PATH.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(state, indent=2, ensure_ascii=False))
+    tmp.replace(STATE_PATH)

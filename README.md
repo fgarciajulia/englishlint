@@ -47,7 +47,9 @@ worked inside one repo and had no memory of past mistakes.
    by real terminal height (`LINES`, via `list_budget`), clamped to a sane
    range so a huge terminal doesn't turn the bar into a wall of text. No
    per-line metadata, no "today's passed reviews" section: what's still a
-   mistake matters more than what's already learned.
+   mistake matters more than what's already learned. `!elmin` collapses
+   the bar to just the header line (handy when you want the space back);
+   `!elmax` restores the full grid.
 5. **`scripts/migrate.py`** — one-time (idempotent) importer for the old
    `english-log.md` "Repeat Mistakes" table. Run once per old log you want
    to fold in; re-running is safe, it skips anything already known.
@@ -102,6 +104,13 @@ python3 ~/.claude/englishlint/scripts/migrate.py /path/to/old/english-log.md
 # 4. (optional) short `elreport` shortcut for manually (re)starting the
 #    report server — requires ~/.local/bin (or another dir on PATH):
 ln -sf ~/.claude/englishlint/scripts/serve-report.sh ~/.local/bin/elreport
+
+# 5. (optional) `elmin`/`elmax` shortcuts to collapse the statusline to
+#    just the header line, and restore it back to the full grid — both
+#    symlink the same script, which dispatches on which name it was
+#    invoked as:
+ln -sf ~/.claude/englishlint/scripts/set-minimize.py ~/.local/bin/elmin
+ln -sf ~/.claude/englishlint/scripts/set-minimize.py ~/.local/bin/elmax
 ```
 
 `state.json` is gitignored — it's per-machine runtime data, not code. See
