@@ -52,13 +52,13 @@ def main() -> int:
     sys.stdin.read()  # drain stdin; we don't need the session JSON
 
     if not STATE_PATH.exists():
-        print(f"{GREY}EnglishLint: sin datos todavia{RESET}")
+        print(f"{GREY}EnglishLint: no data yet{RESET}")
         return 0
 
     try:
         state = json.loads(STATE_PATH.read_text())
     except json.JSONDecodeError:
-        print(f"{GREY}EnglishLint: estado invalido{RESET}")
+        print(f"{GREY}EnglishLint: invalid state{RESET}")
         return 0
 
     streak = state.get("streak", {}).get("count", 0)
@@ -72,10 +72,10 @@ def main() -> int:
     ]
     due.sort(key=lambda c: (c["box"], c["next_review"]))
 
-    lines = [f"{AMBER}🔥 {streak}{RESET} · {points} pts" + (f" · {len(due)} repasos" if due else "")]
+    lines = [f"{AMBER}🔥 {streak}{RESET} · {points} pts" + (f" · {len(due)} due" if due else "")]
 
     for card in due[:DUE_MAX]:
-        lines.append(f"  {GREY}repasar:{RESET} {diff_render(card['wrong'], card['correct'])}")
+        lines.append(f"  {GREY}review:{RESET} {diff_render(card['wrong'], card['correct'])}")
 
     for item in state.get("recent", [])[:RECENT_MAX]:
         mark = "↺" if item.get("kind") == "relapse" else "·"
@@ -84,7 +84,7 @@ def main() -> int:
     reviews_today = state.get("reviews_today", {})
     if reviews_today.get("date") == today:
         for r in reviews_today.get("passed", [])[-PASSED_MAX:]:
-            lines.append(f"  {GREEN}✓ aprendiste:{RESET} {r['correct']}")
+            lines.append(f"  {GREEN}✓ learned:{RESET} {r['correct']}")
 
     print("\n".join(lines[:10]))
     return 0
