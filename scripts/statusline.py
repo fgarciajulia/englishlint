@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """EnglishLint statusline. Reads its own state.json (ignores the session
-JSON Claude Code sends on stdin) and prints one compact line."""
+JSON Claude Code sends on stdin) and prints up to ~10 lines: streak/points,
+due reviews, recent mistakes, and today's passed reviews. This is the one
+surface that shows mistake activity now — chat responses stay clean."""
 import json
 import sys
 from datetime import date
@@ -13,6 +15,10 @@ GREY = "\033[38;5;245m"
 RED = "\033[31m"
 GREEN = "\033[32m"
 RESET = "\033[0m"
+
+DUE_MAX = 2
+RECENT_MAX = 5
+PASSED_MAX = 2
 
 
 def main() -> int:
@@ -31,28 +37,30 @@ def main() -> int:
     streak = state.get("streak", {}).get("count", 0)
     points = state.get("points", {}).get("total", 0)
     today = date.today().isoformat()
-    due = sum(
-        1
+
+    due = [
+        card
         for card in state.get("cards", {}).values()
         if card.get("introduced") and card.get("next_review") and card["next_review"] <= today
-    )
+    ]
+    due.sort(key=lambda c: (c["box"], c["next_review"]))
 
-    due_part = f" · {due} repaso{'s' if due != 1 else ''}" if due else ""
-    print(f"{AMBER}🔥 {streak}{RESET} · {points} pts{due_part}")
+    lines = [f"{AMBER}🔥 {streak}{RESET} · {points} pts" + (f" · {len(due)} repasos" if due else "")]
 
-    recent = state.get("recent", [])[:3]
-    if recent:
-        parts = []
-        for item in recent:
-            color = AMBER if item.get("kind") == "relapse" else RED
-            parts.append(f"{color}{item['wrong']}{RESET}→{GREEN}{item['correct']}{RESET}")
-        print(f"{GREY}ultimos:{RESET} " + "  ".join(parts))
+    for card in due[:DUE_MAX]:
+        lines.append(f"  {GREY}repasar:{RESET} {RED}{card['wrong']}{RESET}→{GREEN}{card['correct']}{RESET}")
+
+    for item in state.get("recent", [])[:RECENT_MAX]:
+        color = AMBER if item.get("kind") == "relapse" else RED
+        mark = "↺" if item.get("kind") == "relapse" else "·"
+        lines.append(f"  {GREY}{mark}{RESET} {color}{item['wrong']}{RESET}→{GREEN}{item['correct']}{RESET}")
 
     reviews_today = state.get("reviews_today", {})
-    if reviews_today.get("date") == today and reviews_today.get("passed"):
-        names = ", ".join(r["correct"] for r in reviews_today["passed"])
-        print(f"{GREEN}✓ hoy aprendiste:{RESET} {names}")
+    if reviews_today.get("date") == today:
+        for r in reviews_today.get("passed", [])[:PASSED_MAX]:
+            lines.append(f"  {GREEN}✓ aprendiste:{RESET} {r['correct']}")
 
+    print("\n".join(lines[:10]))
     return 0
 
 

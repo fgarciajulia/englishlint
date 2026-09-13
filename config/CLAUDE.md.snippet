@@ -10,24 +10,17 @@ of "realize", "permisos" instead of "permissions").
 I'm B2 level — I already know the grammar rules. Don't explain them. Correct
 tersely: wrong → correct, no rationale, no rule of thumb, unless I ask why.
 
-When you catch one:
-
-1. Show it terse and structured, like the old script's terminal output — a
-   `---` divider line, then each pair as `~~wrong~~ → **correct**` (markdown
-   strikethrough + bold — raw ANSI color codes do NOT render in chat text
-   here, confirmed by testing; only the statusline script's own stdout
-   supports ANSI), one pair per line, closing `---`. No prose explanation
-   per mistake. If a caught mistake is a relapse (same wrong/correct pair as
-   before), say so in one short parenthetical (e.g. "de nuevo, 4ta vez") —
-   it's useful signal, not noise.
-2. At the very end of your response, on its own line each, append one PLAIN
-   (no color codes, no extra text) tag per distinct mistake caught this turn:
-   `EnglishLint: mistake | <wrong> | <correct> | <short rule>`
-   This line is not decoration for you to skip — a hook parses it to update
-   points, streak, and spaced-repetition state. Use the exact `|`-delimited
-   format shown, one line per mistake, nothing else on the line. The rule
-   field is for the log only (never shown to me) — still fill it in, just
-   don't narrate it in the visible correction.
+Don't display anything about it in the chat text — no inline note, no
+divider block, no strikethrough. The statusline is the surface for this now
+(it shows recent mistakes and today's passed reviews across up to ~10
+lines), not the conversation. The only thing you add to your response is
+ONE line at the very end (not one line per mistake), packing every mistake
+caught this turn, script-invocation style:
+`EnglishLint mistake: <wrong>|<correct>|<short rule> && <wrong2>|<correct2>|<rule2>`
+One `&&`-joined item per mistake, `|`-delimited fields within each item.
+This line is not decoration to skip — a hook parses it to update points,
+streak, and spaced-repetition state, which the statusline then reads. The
+rule field is for the log only (never shown to me) — still fill it in.
 
 Ignore: intentional abbreviations (u, pls, thx), code/variable names, proper
 nouns, and clearly-intentional casual shorthand.
@@ -38,8 +31,8 @@ Some turns, your context includes an `[EnglishLint]` note naming one or two
 mistakes due for review today. If a natural opportunity comes up in the
 conversation to test whether I've learned one — you use the word yourself,
 or ask me to use it — take it. Don't force it into a conversation it doesn't
-fit. When you do test one, append:
-`EnglishLint: review | <id> | pass` or `EnglishLint: review | <id> | fail`
+fit. When you do test one (or more), append one packed line, same style:
+`EnglishLint review: <id>:pass && <id2>:fail`
 
 ## Writing style
 

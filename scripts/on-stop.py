@@ -19,19 +19,13 @@ from pathlib import Path
 STATE_PATH = Path.home() / ".claude" / "englishlint" / "state.json"
 BOX_INTERVAL_DAYS = {1: 1, 2: 3, 3: 7, 4: 14, 5: 30}
 
-# Anchored to the WHOLE line (optionally wrapped in a single pair of
-# backticks) so a tag only fires when it is its own line, never when it's
-# quoted mid-sentence as an example (e.g. "the tag looks like `EnglishLint:
-# mistake | wrong | correct | rule`" would NOT match — no text may precede
-# or follow it on that line beyond optional backticks/whitespace).
-MISTAKE_RE = re.compile(
-    r"^\s*`?EnglishLint:\s*mistake\s*\|\s*(?P<wrong>[^|]+?)\s*\|\s*(?P<correct>[^|]+?)\s*\|\s*(?P<rule>[^|`]+?)`?\s*$",
-    re.MULTILINE,
-)
-REVIEW_RE = re.compile(
-    r"^\s*`?EnglishLint:\s*review\s*\|\s*(?P<id>[a-z0-9_]+)\s*\|\s*(?P<outcome>pass|fail)`?\s*$",
-    re.MULTILINE,
-)
+# One line per tag TYPE per turn (not per mistake) — all mistakes caught in
+# a turn are packed into a single "EnglishLint mistake: ..." line, items
+# joined by " && " (shell-chain style), fields within an item by "|".
+# Anchored to the WHOLE line (optionally backticked) so it only fires as its
+# own line, never quoted mid-sentence as an example.
+MISTAKE_LINE_RE = re.compile(r"^\s*`?EnglishLint mistake:\s*(?P<items>.+?)`?\s*$", re.MULTILINE)
+REVIEW_LINE_RE = re.compile(r"^\s*`?EnglishLint review:\s*(?P<items>.+?)`?\s*$", re.MULTILINE)
 
 
 def slugify(text: str) -> str:
@@ -163,11 +157,19 @@ def main() -> int:
     bump_streak(state, today)
     run_daily_import(state, today)
 
-    for m in MISTAKE_RE.finditer(message):
-        apply_mistake(state, today, m.group("wrong").strip(), m.group("correct").strip(), m.group("rule").strip())
+    for line_match in MISTAKE_LINE_RE.finditer(message):
+        for item in line_match.group("items").split("&&"):
+            fields = [f.strip() for f in item.split("|")]
+            if len(fields) == 3 and all(fields):
+                wrong, correct, rule = fields
+                apply_mistake(state, today, wrong, correct, rule)
 
-    for m in REVIEW_RE.finditer(message):
-        apply_review(state, today, m.group("id"), m.group("outcome"))
+    for line_match in REVIEW_LINE_RE.finditer(message):
+        for item in line_match.group("items").split("&&"):
+            card_id, _, outcome = item.strip().partition(":")
+            card_id, outcome = card_id.strip(), outcome.strip()
+            if card_id and outcome in ("pass", "fail"):
+                apply_review(state, today, card_id, outcome)
 
     save_state(state)
     return 0
