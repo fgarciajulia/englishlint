@@ -89,11 +89,17 @@ def main() -> int:
 
     prompt_text = payload.get("prompt") or ""
     due_ids = {card_id for card_id, _ in due}
-    mentioned = [
-        (card_id, card)
-        for card_id, card in find_mentioned_cards(prompt_text, cards)
-        if card_id not in due_ids
-    ][:MAX_MENTIONED]
+    # Cards already in the due list are NOT excluded here: a due card is
+    # only guaranteed to be *shown*, not noticed — the exact failure mode
+    # mechanical detection exists to prevent in the first place (a due
+    # card's correct form can sit in the due list turn after turn while its
+    # box-1 owner keeps typing it correctly, because nothing ever credits
+    # it without this check). Due-and-mentioned matches sort first so they
+    # survive MAX_MENTIONED truncation ahead of merely-mentioned cards.
+    mentioned = sorted(
+        find_mentioned_cards(prompt_text, cards),
+        key=lambda pair: pair[0] not in due_ids,
+    )[:MAX_MENTIONED]
 
     if not due and not mentioned:
         return 0
