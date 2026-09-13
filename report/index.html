@@ -1,0 +1,585 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Leitner Ledger (Live)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --ink:#12161d; --ink-soft:#4b5563; --paper:#eef1f4; --surface:#ffffff;
+    --line:#d7dde3; --accent:#0d7d78; --accent-pale:#cfe8e6; --accent-deep:#075753;
+    --attention:#a86a16; --attention-pale:#f3e3cc;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#e9edf1; --ink-soft:#9aa6b2; --paper:#0f1319; --surface:#171d25;
+      --line:#2a323d; --accent:#57d6cd; --accent-pale:#1d3937; --accent-deep:#bdf0ea;
+      --attention:#e3ac57; --attention-pale:#3a2f1a;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#e9edf1; --ink-soft:#9aa6b2; --paper:#0f1319; --surface:#171d25;
+    --line:#2a323d; --accent:#57d6cd; --accent-pale:#1d3937; --accent-deep:#bdf0ea;
+    --attention:#e3ac57; --attention-pale:#3a2f1a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:'IBM Plex Sans',system-ui,sans-serif;
+    margin:0; padding:0 20px; padding-block:32px 64px;
+    font-size:15px; line-height:1.5;
+  }
+  .wrap{max-width:1040px; margin:0 auto;}
+  h1,h2{font-family:'Fraunces',Georgia,serif; text-wrap:balance; margin:0;}
+  .mono{font-family:'IBM Plex Mono',ui-monospace,monospace;}
+  .num{font-variant-numeric:tabular-nums;}
+
+  header.hero{display:flex; flex-direction:column; gap:6px; margin-bottom:20px;}
+  header.hero .eyebrow{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  header.hero .eyebrow-text{
+    font:600 12px/1 'IBM Plex Sans',sans-serif; text-transform:uppercase; letter-spacing:.09em;
+    color:var(--accent);
+  }
+  header.hero h1{font-size:clamp(28px,4.4vw,42px); font-weight:600;}
+  header.hero p{color:var(--ink-soft); max-width:62ch; margin:2px 0 0;}
+
+  .live-pill{
+    display:inline-flex; align-items:center; gap:6px; font:500 11.5px 'IBM Plex Sans',sans-serif;
+    color:var(--ink-soft); background:var(--surface); border:1px solid var(--line);
+    border-radius:999px; padding:3px 10px 3px 8px;
+  }
+  .live-dot{width:7px; height:7px; border-radius:50%; background:var(--accent); animation:pulse 2s infinite;}
+  .live-pill.stale .live-dot{background:var(--attention); animation:none;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.35;}}
+  @media (prefers-reduced-motion:reduce){ .live-dot{animation:none;} }
+
+  .tiles{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+    gap:1px; background:var(--line); border:1px solid var(--line); border-radius:10px;
+    overflow:hidden; margin:24px 0 32px;
+  }
+  .tile{background:var(--surface); padding:16px 18px; display:flex; flex-direction:column; gap:4px;}
+  .tile .label{font-size:11.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft);}
+  .tile .value{font-size:26px; font-weight:500;}
+  .tile.accent .value{color:var(--accent);}
+  .tile.attention .value{color:var(--attention);}
+
+  section{margin:36px 0;}
+  section > h2{font-size:20px; font-weight:600; margin-bottom:4px;}
+  section > .sub{color:var(--ink-soft); font-size:13.5px; margin:0 0 16px;}
+
+  .chart-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:10px;
+    padding:20px 22px 14px;
+  }
+  .bar-row{display:flex; align-items:center; gap:12px; margin:10px 0;}
+  .bar-row .box-label{width:64px; flex:none; font-size:13px; color:var(--ink-soft);}
+  .bar-track{flex:1; height:22px; background:var(--paper); border-radius:5px; overflow:hidden; position:relative;}
+  .bar-fill{height:100%; border-radius:5px; display:flex; align-items:center; min-width:2px; transition:width .3s ease;}
+  .bar-count{width:44px; flex:none; text-align:right; font-size:13px; font-weight:500;}
+
+  .box-detail-grid{display:grid; grid-template-columns:1.15fr 1fr; gap:16px; align-items:start;}
+  @media (max-width:720px){ .box-detail-grid{grid-template-columns:1fr;} }
+
+  .mini-table{width:100%; border-collapse:collapse; font-size:13px; margin-bottom:16px;}
+  .mini-table th{
+    text-align:left; font:600 11px 'IBM Plex Sans',sans-serif; text-transform:uppercase;
+    letter-spacing:.05em; color:var(--ink-soft); padding:0 10px 8px 0;
+  }
+  .mini-table td{padding:7px 10px 7px 0; border-top:1px solid var(--line); vertical-align:middle;}
+  .mini-table tr:first-child td{border-top:none;}
+  .mini-table td.meaning{color:var(--ink-soft);}
+
+  .rules-list{
+    list-style:none; margin:0; padding:14px 0 0; border-top:1px solid var(--line);
+    display:flex; flex-direction:column; gap:9px; font-size:13px; color:var(--ink-soft);
+  }
+  .rules-list li{display:flex; justify-content:space-between; gap:10px;}
+  .rules-list strong{color:var(--ink); font-weight:600;}
+  .rules-list .pts{font-family:'IBM Plex Mono',monospace; font-size:12px; white-space:nowrap;}
+  .rules-list .pts.plus{color:var(--accent-deep);}
+  .rules-list .pts.zero{color:var(--attention);}
+
+  .filters{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:14px;}
+  .filters input[type="search"]{
+    flex:1; min-width:180px; padding:9px 12px; border-radius:8px; border:1px solid var(--line);
+    background:var(--surface); color:var(--ink); font:14px 'IBM Plex Sans',sans-serif;
+  }
+  .filters input[type="search"]:focus{outline:2px solid var(--accent); outline-offset:1px;}
+  .chip{
+    padding:7px 13px; border-radius:999px; border:1px solid var(--line); background:var(--surface);
+    color:var(--ink-soft); font-size:13px; cursor:pointer; user-select:none; white-space:nowrap;
+  }
+  .chip[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:var(--paper); font-weight:500;}
+  .chip:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+
+  .table-card{
+    border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--surface);
+  }
+  .table-scroll{max-height:560px; overflow:auto;}
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  thead th{
+    position:sticky; top:0; background:var(--surface); z-index:1;
+    text-align:left; padding:10px 14px; font:600 11.5px 'IBM Plex Sans',sans-serif;
+    text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft);
+    border-bottom:1px solid var(--line); cursor:pointer; white-space:nowrap;
+  }
+  thead th:hover{color:var(--ink);}
+  thead th.sorted{color:var(--accent);}
+  tbody td{padding:9px 14px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:var(--paper);}
+  td.wrong{color:var(--attention);}
+  td.correct{color:var(--accent-deep); font-weight:500;}
+  .box-pill{
+    display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px;
+    padding:0 6px; border-radius:5px; font:600 11px 'IBM Plex Mono',monospace;
+  }
+  .status-pill{
+    font-size:11.5px; padding:2px 8px; border-radius:999px; background:var(--paper); color:var(--ink-soft);
+    white-space:nowrap;
+  }
+  .status-pill.queued{background:var(--attention-pale); color:var(--attention);}
+  .empty-row td{text-align:center; color:var(--ink-soft); padding:28px;}
+
+  .composition-bar{display:flex; height:30px; border-radius:7px; overflow:hidden; gap:2px;}
+  .composition-bar .seg{
+    display:flex; align-items:center; justify-content:center; min-width:0;
+    font:600 12px 'IBM Plex Mono',monospace; color:#08211f; white-space:nowrap; overflow:hidden;
+    transition:width .3s ease;
+  }
+  .composition-legend{display:flex; flex-wrap:wrap; gap:16px; font-size:12.5px; color:var(--ink-soft); margin-top:12px;}
+  .composition-legend .dot{
+    display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle;
+  }
+
+  .empty-note{color:var(--ink-soft); font-size:13.5px; padding:18px 4px 6px;}
+  .load-error{
+    background:var(--attention-pale); color:var(--attention); border-radius:10px; padding:16px 18px;
+    font-size:13.5px; margin:20px 0;
+  }
+  .load-error code{font-family:'IBM Plex Mono',monospace; background:rgba(0,0,0,.08); padding:1px 5px; border-radius:4px;}
+  .history-svg text{font:500 11px 'IBM Plex Mono',monospace; fill:var(--ink-soft);}
+  .history-svg .axis-line{stroke:var(--line);}
+  .history-legend{display:flex; gap:16px; font-size:12.5px; color:var(--ink-soft); margin-top:8px;}
+  .history-legend .dot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px;}
+
+  footer{margin-top:36px; color:var(--ink-soft); font-size:12.5px;}
+
+  @media (max-width:520px){
+    .bar-row .box-label{width:48px;}
+    thead th, tbody td{padding:8px 8px;}
+  }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="eyebrow">
+      <span class="eyebrow-text">EnglishLint · personal ledger</span>
+      <span class="live-pill" id="live-pill"><span class="live-dot"></span><span id="live-text">connecting…</span></span>
+    </div>
+    <h1>The Leitner Ledger</h1>
+    <p>Every English mistake caught while pairing with Claude Code, filed into Leitner boxes 1–5 and reviewed on a spaced schedule until it sticks. Reads <span class="mono">state.json</span> straight off disk — refreshes itself, no republishing needed.</p>
+  </header>
+
+  <div id="load-error"></div>
+  <div class="tiles" id="tiles"></div>
+
+  <section>
+    <h2>Box distribution</h2>
+    <p class="sub">Every mistake lives in one of 5 Leitner boxes. The box sets how long until it's tested again — pass, it climbs a box and waits longer; fail or relapse, it drops back to daily review.</p>
+    <div class="box-detail-grid">
+      <div class="chart-card" id="chart"></div>
+      <div class="chart-card">
+        <table class="mini-table" id="interval-table"></table>
+        <ul class="rules-list">
+          <li><span>New mistake caught</span> <span class="pts plus mono">box 1 · +5</span></li>
+          <li><span>Due review passed</span> <span class="pts plus mono">box +1 · +10</span></li>
+          <li><span>Due review failed</span> <span class="pts mono">box → 1</span></li>
+          <li><span>Relapse (caught again before passing)</span> <span class="pts zero mono">box → 1 · +0</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>How you're tracking</h2>
+    <p class="sub" id="composition-sub"></p>
+    <div class="chart-card">
+      <div class="composition-bar" id="composition-bar"></div>
+      <div class="composition-legend" id="composition-legend"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Repeat offenders</h2>
+    <p class="sub">How many times each mistake has actually recurred — the stickiest ones are the ones worth real attention, not just the newest ones.</p>
+    <div class="chart-card" id="seen-chart"></div>
+  </section>
+
+  <section>
+    <h2>Progress over time</h2>
+    <p class="sub" id="history-sub"></p>
+    <div class="chart-card" id="history-chart"></div>
+  </section>
+
+  <section>
+    <h2>All mistakes</h2>
+    <p class="sub" id="table-sub"></p>
+    <div class="filters" id="filters">
+      <input type="search" id="search" placeholder="Search wrong or correct…">
+    </div>
+    <div class="table-card">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th data-key="wrong">Wrong</th>
+              <th data-key="correct">Correct</th>
+              <th data-key="box">Box</th>
+              <th data-key="times_seen">Seen</th>
+              <th data-key="status">Status</th>
+              <th data-key="next_review">Next review</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>Reads <span class="mono">../state.json</span> every 4s — <span id="footer-today"></span>. Rules aren't shown here by design; only the wrong/correct pair.</footer>
+</div>
+
+<script>
+(function(){
+  const POLL_MS = 4000;
+  const STATE_URL = '../state.json';
+
+  const boxRamp = ['#cfe8e6','#9ed4d0','#5fb8b1','#2b968f','#0d7d78'];
+  const boxRampDark = ['#123230','#1d4744','#2c6864','#3f9a92','#57d6cd'];
+  const isDark = () => {
+    const t = document.documentElement.getAttribute('data-theme');
+    if (t === 'dark') return true;
+    if (t === 'light') return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  };
+  const rampFor = (box) => (isDark() ? boxRampDark : boxRamp)[Math.max(0, Math.min(4, box - 1))];
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  // ---- raw state.json -> the shape every render function below expects ----
+  // Mirrors the Python extraction used for the published snapshot report;
+  // the `rule` field is read from state.json but never placed into `cards`
+  // or anywhere else rendered — it stays log-only, per standing instruction.
+  function buildData(state){
+    const today = new Date().toISOString().slice(0, 10);
+    const cardsRaw = state.cards || {};
+    const cards = Object.keys(cardsRaw).map(id => {
+      const c = cardsRaw[id];
+      return {
+        id,
+        wrong: c.wrong,
+        correct: c.correct,
+        box: c.box ?? 1,
+        times_seen: c.times_seen ?? 1,
+        next_review: c.next_review ?? null,
+        introduced: !!c.introduced,
+        source: c.source || 'new',
+      };
+    });
+    cards.sort((a, b) => {
+      const ak = (a.introduced && a.next_review) ? [0, a.next_review] : [1, a.id];
+      const bk = (b.introduced && b.next_review) ? [0, b.next_review] : [1, b.id];
+      if (ak[0] !== bk[0]) return ak[0] - bk[0];
+      return ak[1] < bk[1] ? -1 : ak[1] > bk[1] ? 1 : 0;
+    });
+
+    const box_dist = {1:0,2:0,3:0,4:0,5:0};
+    cards.forEach(c => { box_dist[c.box] = (box_dist[c.box] || 0) + 1; });
+
+    const due = cards.filter(c => c.introduced && c.next_review && c.next_review <= today).length;
+    const active = cards.filter(c => c.introduced).length;
+    const mastered = box_dist[5];
+    const queued = ((state.migration || {}).queue || []).length;
+
+    const times_seen_dist = {1:0,2:0,3:0,4:0,5:0};
+    cards.forEach(c => { const k = Math.min(c.times_seen, 5); times_seen_dist[k] = (times_seen_dist[k] || 0) + 1; });
+
+    const source_dist = {};
+    cards.forEach(c => { source_dist[c.source] = (source_dist[c.source] || 0) + 1; });
+
+    const summary = {
+      today,
+      streak: (state.streak || {}).count || 0,
+      points: (state.points || {}).total || 0,
+      total_cards: cards.length,
+      active, mastered, due, queued,
+      box_dist, times_seen_dist, source_dist,
+    };
+
+    return { summary, cards, history: state.history || [] };
+  }
+
+  let summary = null, cards = [], history = [];
+
+  // ---- stat tiles ----
+  function renderTiles(){
+    const tiles = [
+      ['Streak', summary.streak + 'd', ''],
+      ['Points', summary.points, 'accent'],
+      ['Active', summary.active, ''],
+      ['Mastered', summary.mastered, 'accent'],
+      ['Due today', summary.due, summary.due ? 'attention' : ''],
+      ['Queued', summary.queued, 'attention'],
+    ];
+    document.getElementById('tiles').innerHTML = tiles.map(([label, value, cls]) =>
+      `<div class="tile ${cls}"><span class="label">${label}</span><span class="value num">${value}</span></div>`
+    ).join('');
+  }
+
+  // ---- box distribution chart ----
+  const chartEl = document.getElementById('chart');
+  function renderChart(){
+    const boxDist = summary.box_dist;
+    const maxBox = Math.max(1, ...Object.values(boxDist));
+    chartEl.innerHTML = [1,2,3,4,5].map(b => {
+      const count = boxDist[b] || 0;
+      const pct = Math.max(count > 0 ? 3 : 0, (count / maxBox) * 100);
+      return `<div class="bar-row">
+        <span class="box-label mono">Box ${b}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:${pct}%; background:${rampFor(b)}"></span></span>
+        <span class="bar-count num">${count}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // ---- box interval reference table ----
+  const BOX_INTERVALS = [
+    [1, '1 day', 'Just caught, or just failed a review'],
+    [2, '3 days', 'Passed once'],
+    [3, '7 days', 'Passed twice in a row'],
+    [4, '14 days', 'Passed three times in a row'],
+    [5, '30 days', 'Mastered — still checked periodically'],
+  ];
+  const intervalEl = document.getElementById('interval-table');
+  function renderIntervalTable(){
+    intervalEl.innerHTML = `
+      <thead><tr><th>Box</th><th>Interval</th><th>Meaning</th></tr></thead>
+      <tbody>${BOX_INTERVALS.map(([b, interval, meaning]) => `
+        <tr>
+          <td><span class="box-pill" style="background:${rampFor(b)}; color:#08211f">${b}</span></td>
+          <td class="mono">${interval}</td>
+          <td class="meaning">${meaning}</td>
+        </tr>`).join('')}</tbody>`;
+  }
+
+  // ---- composition: not started / learning / mastered ----
+  const compBarEl = document.getElementById('composition-bar');
+  const compLegendEl = document.getElementById('composition-legend');
+  const compSubEl = document.getElementById('composition-sub');
+  function renderComposition(){
+    const learning = summary.active - summary.mastered;
+    const segs = [
+      ['Not started', summary.queued, isDark() ? '#2a323d' : '#d7dde3', 'var(--ink-soft)'],
+      ['Learning', learning, rampFor(2), '#08211f'],
+      ['Mastered', summary.mastered, rampFor(5), '#08211f'],
+    ];
+    const total = summary.total_cards || 1;
+    compBarEl.innerHTML = segs.map(([label, count, bg, fg]) => {
+      const pct = (count / total) * 100;
+      const showLabel = pct > 9;
+      return `<span class="seg" style="width:${pct}%; background:${bg}; color:${fg}">${showLabel ? count : ''}</span>`;
+    }).join('');
+    compLegendEl.innerHTML = segs.map(([label, count, bg]) =>
+      `<span><span class="dot" style="background:${bg}"></span>${label}: ${count}</span>`
+    ).join('');
+    const pctMastered = ((summary.mastered / total) * 100).toFixed(0);
+    compSubEl.textContent = `${summary.total_cards} mistakes tracked in total — ${summary.queued} not yet introduced, ${learning} being learned, ${summary.mastered} mastered (${pctMastered}%). Mistakes will keep arriving faster than mastery for a while — box 5 takes months of passed reviews to reach, that's expected, not a red flag.`;
+  }
+
+  // ---- repeat offenders: times-seen histogram ----
+  const seenChartEl = document.getElementById('seen-chart');
+  function renderSeenChart(){
+    const dist = summary.times_seen_dist;
+    const maxSeen = Math.max(1, ...Object.values(dist));
+    seenChartEl.innerHTML = [1,2,3,4,5].map(n => {
+      const count = dist[n] || 0;
+      const pct = Math.max(count > 0 ? 3 : 0, (count / maxSeen) * 100);
+      const label = n === 5 ? '5+×' : `${n}×`;
+      return `<div class="bar-row">
+        <span class="box-label mono">${label}</span>
+        <span class="bar-track"><span class="bar-fill" style="width:${pct}%; background:${rampFor(Math.min(5, n + 1))}"></span></span>
+        <span class="bar-count num">${count}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // ---- progress over time ----
+  const historyChartEl = document.getElementById('history-chart');
+  const historySubEl = document.getElementById('history-sub');
+  function renderHistoryChart(){
+    if (history.length < 2){
+      historySubEl.textContent = `Daily history started ${history[0]?.date ?? summary.today} — one snapshot a day from here.`;
+      historyChartEl.innerHTML = `<p class="empty-note">Not enough days yet to draw a trend line for active-vs-mastered mistakes. Check back after a few more days of writing.</p>`;
+      return;
+    }
+    historySubEl.textContent = `${history.length} days logged, ${history[0].date} → ${history[history.length - 1].date}.`;
+    const w = 700, h = 220, padL = 34, padR = 12, padT = 14, padB = 26;
+    const maxY = Math.max(1, ...history.map(d => Math.max(d.active, d.mastered)));
+    const xf = i => padL + (i / (history.length - 1)) * (w - padL - padR);
+    const yf = v => padT + (1 - v / maxY) * (h - padT - padB);
+    const pathFor = key => history.map((d, i) => `${i === 0 ? 'M' : 'L'}${xf(i).toFixed(1)},${yf(d[key]).toFixed(1)}`).join(' ');
+    const activeColor = rampFor(2), masteredColor = rampFor(5);
+    const gridLines = [0, 0.5, 1].map(t => {
+      const y = padT + t * (h - padT - padB);
+      const val = Math.round(maxY * (1 - t));
+      return `<line class="axis-line" x1="${padL}" x2="${w - padR}" y1="${y}" y2="${y}" stroke-width="1"/>
+              <text x="${padL - 8}" y="${y + 4}" text-anchor="end">${val}</text>`;
+    }).join('');
+    historyChartEl.innerHTML = `
+      <svg class="history-svg" viewBox="0 0 ${w} ${h}" width="100%" role="img" aria-label="Active and mastered mistakes over time">
+        ${gridLines}
+        <path d="${pathFor('active')}" fill="none" stroke="${activeColor}" stroke-width="2"/>
+        <path d="${pathFor('mastered')}" fill="none" stroke="${masteredColor}" stroke-width="2"/>
+      </svg>
+      <div class="history-legend">
+        <span><span class="dot" style="background:${activeColor}"></span>Active</span>
+        <span><span class="dot" style="background:${masteredColor}"></span>Mastered</span>
+      </div>`;
+  }
+
+  function renderAllCharts(){
+    renderChart(); renderIntervalTable(); renderComposition(); renderSeenChart(); renderHistoryChart();
+  }
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (summary) renderAllCharts(); });
+
+  // ---- table (filters/sort state persists across polls) ----
+  const tbody = document.getElementById('tbody');
+  const searchEl = document.getElementById('search');
+  const subEl = document.getElementById('table-sub');
+  const filtersEl = document.getElementById('filters');
+
+  const chips = [
+    ['all', 'All'], ['due', 'Due now'],
+    ['1', 'Box 1'], ['2', 'Box 2'], ['3', 'Box 3'], ['4', 'Box 4'], ['5', 'Mastered'],
+    ['queued', 'Not started'],
+  ];
+  let activeFilter = 'all';
+  chips.forEach(([key, label]) => {
+    const btn = document.createElement('button');
+    btn.className = 'chip'; btn.type = 'button'; btn.textContent = label;
+    btn.setAttribute('aria-pressed', key === 'all' ? 'true' : 'false');
+    btn.addEventListener('click', () => {
+      activeFilter = key;
+      filtersEl.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', c === btn ? 'true' : 'false'));
+      renderTable();
+    });
+    filtersEl.appendChild(btn);
+  });
+
+  let sortKey = 'box', sortDir = 1;
+  function statusOf(c){
+    if (!c.introduced) return 'queued';
+    if (c.next_review && c.next_review <= summary.today) return 'due';
+    return 'active';
+  }
+  function statusLabel(c){
+    const s = statusOf(c);
+    if (s === 'queued') return 'not started';
+    if (s === 'due') return 'due now';
+    return c.box === 5 ? 'mastered' : 'learning';
+  }
+
+  function renderTable(){
+    const q = searchEl.value.trim().toLowerCase();
+    let rows = cards.filter(c => {
+      if (q && !c.wrong.toLowerCase().includes(q) && !c.correct.toLowerCase().includes(q)) return false;
+      if (activeFilter === 'all') return true;
+      if (activeFilter === 'due') return statusOf(c) === 'due';
+      if (activeFilter === 'queued') return statusOf(c) === 'queued';
+      return String(c.box) === activeFilter;
+    });
+
+    rows = rows.slice().sort((a, b) => {
+      let av = sortKey === 'status' ? statusOf(a) : a[sortKey];
+      let bv = sortKey === 'status' ? statusOf(b) : b[sortKey];
+      if (av == null) av = '';
+      if (bv == null) bv = '';
+      if (typeof av === 'string') av = av.toLowerCase();
+      if (typeof bv === 'string') bv = bv.toLowerCase();
+      return av < bv ? -1 * sortDir : av > bv ? 1 * sortDir : 0;
+    });
+
+    subEl.textContent = `${rows.length} of ${cards.length} mistakes shown`;
+
+    if (!rows.length){
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No mistakes match that filter.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(c => {
+      const pillClass = statusOf(c) === 'queued' ? 'status-pill queued' : 'status-pill';
+      return `<tr>
+        <td class="wrong mono">${escapeHtml(c.wrong)}</td>
+        <td class="correct mono">${escapeHtml(c.correct)}</td>
+        <td><span class="box-pill" style="background:${rampFor(c.box)}; color:#08211f">${c.box}</span></td>
+        <td class="num">${c.times_seen}</td>
+        <td><span class="${pillClass}">${statusLabel(c)}</span></td>
+        <td class="mono">${c.next_review || '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  document.querySelectorAll('thead th').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.key;
+      if (sortKey === key) sortDir *= -1; else { sortKey = key; sortDir = 1; }
+      document.querySelectorAll('thead th').forEach(t => t.classList.toggle('sorted', t === th));
+      renderTable();
+    });
+  });
+  document.querySelector(`thead th[data-key="box"]`).classList.add('sorted');
+  searchEl.addEventListener('input', renderTable);
+
+  // ---- live polling ----
+  const livePillEl = document.getElementById('live-pill');
+  const liveTextEl = document.getElementById('live-text');
+  const errorEl = document.getElementById('load-error');
+  let lastRaw = null;
+
+  function setLive(ok, when){
+    livePillEl.classList.toggle('stale', !ok);
+    liveTextEl.textContent = ok ? `live · updated ${when}` : 'can’t reach state.json';
+  }
+
+  async function poll(){
+    try {
+      const res = await fetch(`${STATE_URL}?_=${Date.now()}`, {cache: 'no-store'});
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const raw = await res.text();
+      setLive(true, new Date().toLocaleTimeString());
+      errorEl.innerHTML = '';
+      if (raw === lastRaw) return;
+      lastRaw = raw;
+      const state = JSON.parse(raw);
+      ({ summary, cards, history } = buildData(state));
+      renderTiles();
+      renderAllCharts();
+      renderTable();
+      document.getElementById('footer-today').textContent = summary.today;
+    } catch (err) {
+      setLive(false);
+      if (!summary){
+        errorEl.innerHTML = `<div class="load-error">Couldn't load <code>state.json</code> (${escapeHtml(String(err.message || err))}).
+          This page needs to be served over <code>http://</code>, not opened as a <code>file://</code> path — browsers block a local page from fetching a sibling file for security reasons.
+          Run <code>scripts/serve-report.sh</code> from the <code>englishlint</code> folder and open the URL it prints.</div>`;
+      }
+    }
+  }
+
+  poll();
+  setInterval(poll, POLL_MS);
+})();
+</script>
