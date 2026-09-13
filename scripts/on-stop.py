@@ -14,9 +14,12 @@ import json
 import re
 import sys
 from datetime import date, timedelta
-from pathlib import Path
 
-STATE_PATH = Path.home() / ".claude" / "englishlint" / "state.json"
+from _common import STATE_PATH, default_state, slugify
+
+# Source of truth for review spacing. Mirrored as display-only literals in
+# report/index.html's BOX_INTERVALS table and in README.md's prose — if you
+# tune these, update those two by hand, nothing keeps them in sync.
 BOX_INTERVAL_DAYS = {1: 1, 2: 3, 3: 7, 4: 14, 5: 30}
 
 # One line per tag TYPE per turn (not per mistake) — all mistakes caught in
@@ -28,28 +31,13 @@ MISTAKE_LINE_RE = re.compile(r"^\s*`?EnglishLint mistake:\s*(?P<items>.+?)`?\s*$
 REVIEW_LINE_RE = re.compile(r"^\s*`?EnglishLint review:\s*(?P<items>.+?)`?\s*$", re.MULTILINE)
 
 
-def slugify(text: str) -> str:
-    text = text.lower().strip()
-    text = re.sub(r"[^a-z0-9]+", "_", text)
-    return text.strip("_")[:40] or "x"
-
-
 def load_state() -> dict:
     if STATE_PATH.exists():
         try:
             return json.loads(STATE_PATH.read_text())
         except json.JSONDecodeError:
             pass
-    return {
-        "version": 1,
-        "streak": {"count": 0, "last_active_date": None},
-        "points": {"total": 0},
-        "cards": {},
-        "migration": {"queue": [], "batch_size": 8, "last_import_date": None},
-        "recent": [],
-        "reviews_today": {"date": None, "passed": []},
-        "history": [],
-    }
+    return default_state()
 
 
 RECENT_MAX = 20
@@ -90,6 +78,13 @@ def run_daily_import(state: dict, today: date) -> None:
         card_id = queue.pop(0)
         card = cards.get(card_id)
         if card is None:
+            continue
+        if card.get("introduced"):
+            # Already introduced early — e.g. on-prompt.py's mention-
+            # detection caught its `correct` form and Claude tested it
+            # before the card's scheduled queue slot. Drop it from the
+            # queue without resetting next_review, or a passed review's
+            # box advance would get clobbered back to "due today".
             continue
         card["introduced"] = True
         card["next_review"] = today.isoformat()
@@ -165,6 +160,14 @@ def apply_review(state: dict, today: date, card_id: str, outcome: str) -> None:
     card = state["cards"].get(card_id)
     if card is None:
         return
+    # A card can be reviewed before its migration-queue turn introduces it
+    # (on-prompt.py's mention-detection surfaces a queued card's `correct`
+    # form the moment it shows up in a message, regardless of queue
+    # position). Mark it introduced here too, or it stays invisible to the
+    # "due" filters everywhere else (they all require introduced=True) and
+    # run_daily_import would later re-introduce it and reset next_review,
+    # discarding the box progress this review just earned.
+    card["introduced"] = True
     if outcome == "pass":
         card["box"] = min(card.get("box", 1) + 1, 5)
         state["points"]["total"] += 10

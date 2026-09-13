@@ -14,13 +14,17 @@ import socket
 import subprocess
 import sys
 from datetime import date
-from pathlib import Path
 
-ENGLISHLINT_DIR = Path.home() / ".claude" / "englishlint"
-STATE_PATH = ENGLISHLINT_DIR / "state.json"
+from _common import STATE_PATH
+
+ENGLISHLINT_DIR = STATE_PATH.parent
 
 REPORT_PORT = 8931
 REPORT_URL = f"http://localhost:{REPORT_PORT}/report/index.html"
+# ~/.local/bin/elreport symlinks to scripts/serve-report.sh (see README's
+# setup section) — short enough that report+run fit on one statusline line,
+# unlike the full absolute path.
+REPORT_SERVE_CMD = "!elreport"
 
 AMBER = "\033[38;5;214m"
 GREY = "\033[38;5;245m"
@@ -36,27 +40,23 @@ MIN_LIST_LINES = 5
 MAX_LIST_LINES = 20
 
 ANSI_RE = re.compile(r"\033\[[0-9;]*m")
-OSC8_RE = re.compile(r"\033\]8;[^\033]*\033\\")
 
 
 def visible_len(s: str) -> int:
-    return len(OSC8_RE.sub("", ANSI_RE.sub("", s)))
-
-
-def hyperlink(label: str, url: str) -> str:
-    """OSC 8 clickable link (Cmd/Ctrl+click in terminals that support it —
-    iTerm2/Kitty/WezTerm are confirmed by Claude Code's own docs; Warp is
-    untested, same as the color/strikethrough situation earlier)."""
-    return f"\033]8;;{url}\033\\{label}\033]8;;\033\\"
+    return len(ANSI_RE.sub("", s))
 
 
 def ensure_report_server() -> None:
     """Best-effort: start the local live-report's static server in the
-    background if nothing's already listening on REPORT_PORT, so the
-    statusline's link works on the first click without the user having to
-    run scripts/serve-report.sh by hand first. Never blocks noticeably
-    (tiny connect timeout) and never raises — a failed spawn just means
-    the link fails the way any dead localhost link fails."""
+    background if nothing's already listening on REPORT_PORT, so the report
+    is already reachable the moment you want it without running
+    scripts/serve-report.sh by hand first. Never blocks noticeably (tiny
+    connect timeout) and never raises — a failed spawn just means the URL
+    fails to load the way any dead localhost link fails.
+
+    Bound explicitly to loopback: state.json holds personal mistake
+    history, and plain `python3 -m http.server` defaults to 0.0.0.0,
+    which would serve it to anyone else on the same network."""
     try:
         with socket.create_connection(("127.0.0.1", REPORT_PORT), timeout=0.05):
             return
@@ -64,7 +64,7 @@ def ensure_report_server() -> None:
         pass
     try:
         subprocess.Popen(
-            ["python3", "-m", "http.server", str(REPORT_PORT)],
+            ["python3", "-m", "http.server", str(REPORT_PORT), "--bind", "127.0.0.1"],
             cwd=str(ENGLISHLINT_DIR),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -91,7 +91,7 @@ def list_budget() -> int:
     """How many due+recent lines to show, based on real terminal height
     minus what the rest of Claude Code's UI needs, clamped to a sane
     range so a huge terminal doesn't turn the bar into a wall of text."""
-    available = terminal_lines() - RESERVED_LINES - 1  # -1 for the header line
+    available = terminal_lines() - RESERVED_LINES - 2  # header + report line
     return max(min(available, MAX_LIST_LINES), MIN_LIST_LINES)
 
 
@@ -262,18 +262,24 @@ def main() -> int:
             break  # narrower terminal: keep the highest-priority columns only
         header += addition
 
-    button = f" {GREY}[{RESET}{hyperlink(f'{AMBER}open report{RESET}', REPORT_URL)}{GREY}]{RESET}"
-    if visible_len(header) + visible_len(button) <= budget:
-        header += button
+    # Claude Code's statusline strips/breaks OSC 8 hyperlinks (confirmed:
+    # the identical escape sequence IS clickable as plain tool output, just
+    # not from here) — so this is plain selectable text, not a fake link.
+    # REPORT_SERVE_CMD is short (elreport, a PATH shortcut) specifically so
+    # this fits on one line at normal widths.
+    lines = [header]
+    report_line = f"  {GREY}report:{RESET} {REPORT_URL}  {GREY}run:{RESET} {REPORT_SERVE_CMD}"
+    if visible_len(report_line) <= budget:
+        lines.append(report_line)
 
     items = [diff_render(c["wrong"], c["correct"]) for c in due]
     for item in state.get("recent", []):
         text = diff_render(item["wrong"], item["correct"])
         items.append(f"↺{text}" if item.get("kind") == "relapse" else text)
 
-    grid = build_grid(items, budget, list_budget(), MIN_LIST_LINES, "  · ")
+    lines.extend(build_grid(items, budget, list_budget(), MIN_LIST_LINES, "  · "))
 
-    print("\n".join([header] + grid))
+    print("\n".join(lines))
     return 0
 
 

@@ -18,5 +18,24 @@
     "queue": [],
     "batch_size": 8,
     "last_import_date": "2026-09-12"
-  }
+  },
+  "recent": [
+    { "wrong": "teh", "correct": "the", "kind": "new" }
+  ],
+  "reviews_today": {
+    "date": "2026-09-13",
+    "passed": []
+  },
+  "history": [
+    {
+      "date": "2026-09-13",
+      "points": 0,
+      "streak": 0,
+      "active": 1,
+      "mastered": 0,
+      "queued": 0,
+      "total_cards": 1,
+      "box_dist": { "1": 1, "2": 0, "3": 0, "4": 0, "5": 0 }
+    }
+  ]
 }

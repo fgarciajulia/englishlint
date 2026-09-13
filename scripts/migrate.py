@@ -12,7 +12,7 @@ import re
 import sys
 from pathlib import Path
 
-STATE_PATH = Path.home() / ".claude" / "englishlint" / "state.json"
+from _common import STATE_PATH, default_state, slugify
 
 ROW_RE = re.compile(
     r'^\|\s*\d+\s*\|\s*'
@@ -20,12 +20,6 @@ ROW_RE = re.compile(
     r'<span[^>]*>(?P<correct>.*?)</span>\s*\|\s*'
     r'(?P<times>\d+)\s*\|'
 )
-
-
-def slugify(text: str) -> str:
-    text = text.lower().strip()
-    text = re.sub(r"[^a-z0-9]+", "_", text)
-    return text.strip("_")[:40] or "x"
 
 
 def box_for_times(times: int) -> int:
@@ -39,13 +33,7 @@ def box_for_times(times: int) -> int:
 def load_state() -> dict:
     if STATE_PATH.exists():
         return json.loads(STATE_PATH.read_text())
-    return {
-        "version": 1,
-        "streak": {"count": 0, "last_active_date": None},
-        "points": {"total": 0},
-        "cards": {},
-        "migration": {"queue": [], "batch_size": 8, "last_import_date": None},
-    }
+    return default_state()
 
 
 def main():

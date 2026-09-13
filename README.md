@@ -98,6 +98,10 @@ chmod +x ~/.claude/englishlint/scripts/*.py
 
 # 3. (optional) import an old english-log.md "Repeat Mistakes" table:
 python3 ~/.claude/englishlint/scripts/migrate.py /path/to/old/english-log.md
+
+# 4. (optional) short `elreport` shortcut for manually (re)starting the
+#    report server — requires ~/.local/bin (or another dir on PATH):
+ln -sf ~/.claude/englishlint/scripts/serve-report.sh ~/.local/bin/elreport
 ```
 
 `state.json` is gitignored — it's per-machine runtime data, not code. See

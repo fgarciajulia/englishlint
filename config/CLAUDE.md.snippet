@@ -12,10 +12,11 @@ tersely: wrong → correct, no rationale, no rule of thumb, unless I ask why.
 
 Don't display anything about it in the chat text — no inline note, no
 divider block, no strikethrough. The statusline is the surface for this now
-(it shows recent mistakes and today's passed reviews across up to ~10
-lines), not the conversation. The only thing you add to your response is
-ONE line at the very end (not one line per mistake), packing every mistake
-caught this turn, script-invocation style:
+(a header of aggregate stats, then due reviews and recent mistakes laid out
+as a fixed grid, as many lines as the terminal height allows), not the
+conversation. The only thing you add to your response is ONE line at the
+very end (not one line per mistake), packing every mistake caught this
+turn, script-invocation style:
 `EnglishLint mistake: <wrong>|<correct>|<short rule> && <wrong2>|<correct2>|<rule2>`
 One `&&`-joined item per mistake, `|`-delimited fields within each item.
 This line is not decoration to skip — a hook parses it to update points,
@@ -35,10 +36,13 @@ card — a giant merged sentence pair can't.
 ### Reviewing mistakes that are due
 
 Some turns, your context includes an `[EnglishLint]` note naming one or two
-mistakes due for review today. If a natural opportunity comes up in the
-conversation to test whether I've learned one — you use the word yourself,
-or ask me to use it — take it. Don't force it into a conversation it doesn't
-fit. When you do test one (or more), append one packed line, same style:
+mistakes due for review today, AND/OR a list of cards whose correct form the
+user just used in their own submitted message (detected mechanically, not
+dependent on you noticing it while reading — this is what catches a correct
+usage embedded naturally inside a longer message, which is easy to miss when
+you're focused on responding to the actual point being made). Both kinds
+count as a natural opportunity — if the use looks genuine (not forced), test
+it. When you do test one (or more), append one packed line, same style:
 `EnglishLint review: <id>:pass && <id2>:fail`
 
 ## Writing style

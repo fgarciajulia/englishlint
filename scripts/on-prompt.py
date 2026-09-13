@@ -16,9 +16,9 @@ import json
 import re
 import sys
 from datetime import date
-from pathlib import Path
 
-STATE_PATH = Path.home() / ".claude" / "englishlint" / "state.json"
+from _common import STATE_PATH
+
 MAX_SURFACED = 2
 MAX_MENTIONED = 4
 
@@ -91,9 +91,9 @@ def main() -> int:
     due_ids = {card_id for card_id, _ in due}
     mentioned = [
         (card_id, card)
-        for card_id, card in find_mentioned_cards(prompt_text, cards)[:MAX_MENTIONED]
+        for card_id, card in find_mentioned_cards(prompt_text, cards)
         if card_id not in due_ids
-    ]
+    ][:MAX_MENTIONED]
 
     if not due and not mentioned:
         return 0
@@ -124,7 +124,8 @@ def main() -> int:
 
     lines.append(
         "Si el uso es natural (no forzado), registralo. Al final de tu respuesta, "
-        "agrega una linea por cada repaso: `EnglishLint: review | <id> | pass` o `| fail`."
+        "agrega UNA sola linea (todos los repasos juntos, no una por repaso) con el "
+        "formato: `EnglishLint review: <id>:pass && <id2>:fail`."
     )
 
     print(json.dumps({

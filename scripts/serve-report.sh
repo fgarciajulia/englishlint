@@ -9,7 +9,7 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PORT="${1:-8931}"
 URL="http://localhost:${PORT}/report/index.html"
 
-python3 -m http.server "$PORT" >/dev/null 2>&1 &
+python3 -m http.server "$PORT" --bind 127.0.0.1 >/dev/null 2>&1 &
 SERVER_PID=$!
 trap 'kill "$SERVER_PID" 2>/dev/null' EXIT
 
