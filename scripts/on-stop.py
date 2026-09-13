@@ -52,7 +52,12 @@ def load_state() -> dict:
         "points": {"total": 0},
         "cards": {},
         "migration": {"queue": [], "batch_size": 8, "last_import_date": None},
+        "recent": [],
+        "reviews_today": {"date": None, "passed": []},
     }
+
+
+RECENT_MAX = 5
 
 
 def save_state(state: dict) -> None:
@@ -97,6 +102,11 @@ def run_daily_import(state: dict, today: date) -> None:
     migration["last_import_date"] = today.isoformat()
 
 
+def push_recent(state: dict, wrong: str, correct: str, kind: str) -> None:
+    state.setdefault("recent", []).insert(0, {"wrong": wrong, "correct": correct, "kind": kind})
+    del state["recent"][RECENT_MAX:]
+
+
 def apply_mistake(state: dict, today: date, wrong: str, correct: str, rule: str) -> None:
     card_id = f"{slugify(wrong)}__{slugify(correct)}"
     cards = state["cards"]
@@ -106,6 +116,7 @@ def apply_mistake(state: dict, today: date, wrong: str, correct: str, rule: str)
         card["box"] = 1
         card["next_review"] = (today + timedelta(days=BOX_INTERVAL_DAYS[1])).isoformat()
         card["introduced"] = True
+        push_recent(state, wrong, correct, "relapse")
         # relapse: no points, this is a signal it's not learned yet
     else:
         cards[card_id] = {
@@ -119,6 +130,7 @@ def apply_mistake(state: dict, today: date, wrong: str, correct: str, rule: str)
             "source": "new",
         }
         state["points"]["total"] += 5
+        push_recent(state, wrong, correct, "new")
 
 
 def apply_review(state: dict, today: date, card_id: str, outcome: str) -> None:
@@ -128,6 +140,11 @@ def apply_review(state: dict, today: date, card_id: str, outcome: str) -> None:
     if outcome == "pass":
         card["box"] = min(card.get("box", 1) + 1, 5)
         state["points"]["total"] += 10
+        reviews_today = state.setdefault("reviews_today", {"date": None, "passed": []})
+        if reviews_today.get("date") != today.isoformat():
+            reviews_today["date"] = today.isoformat()
+            reviews_today["passed"] = []
+        reviews_today["passed"].append({"wrong": card["wrong"], "correct": card["correct"]})
     else:
         card["box"] = 1
     card["next_review"] = (today + timedelta(days=BOX_INTERVAL_DAYS[card["box"]])).isoformat()

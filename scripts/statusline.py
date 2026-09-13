@@ -10,6 +10,8 @@ STATE_PATH = Path.home() / ".claude" / "englishlint" / "state.json"
 
 AMBER = "\033[38;5;214m"
 GREY = "\033[38;5;245m"
+RED = "\033[31m"
+GREEN = "\033[32m"
 RESET = "\033[0m"
 
 
@@ -37,6 +39,20 @@ def main() -> int:
 
     due_part = f" · {due} repaso{'s' if due != 1 else ''}" if due else ""
     print(f"{AMBER}🔥 {streak}{RESET} · {points} pts{due_part}")
+
+    recent = state.get("recent", [])[:3]
+    if recent:
+        parts = []
+        for item in recent:
+            color = AMBER if item.get("kind") == "relapse" else RED
+            parts.append(f"{color}{item['wrong']}{RESET}→{GREEN}{item['correct']}{RESET}")
+        print(f"{GREY}ultimos:{RESET} " + "  ".join(parts))
+
+    reviews_today = state.get("reviews_today", {})
+    if reviews_today.get("date") == today and reviews_today.get("passed"):
+        names = ", ".join(r["correct"] for r in reviews_today["passed"])
+        print(f"{GREEN}✓ hoy aprendiste:{RESET} {names}")
+
     return 0
 
 

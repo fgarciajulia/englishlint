@@ -12,13 +12,14 @@ tersely: wrong → correct, no rationale, no rule of thumb, unless I ask why.
 
 When you catch one:
 
-1. Show it terse and structured, like the old script's terminal output —
-   a `=================` divider line, then each `wrong → correct` pair in
-   red/green ANSI color (`\x1b[31m`/`\x1b[32m`, reset `\x1b[0m`), one pair per
-   line, closing divider. No prose explanation per mistake. If a caught
-   mistake is a relapse (same wrong/correct pair as before), say so in one
-   short parenthetical (e.g. "de nuevo, 4ta vez") — it's useful signal, not
-   noise.
+1. Show it terse and structured, like the old script's terminal output — a
+   `---` divider line, then each pair as `~~wrong~~ → **correct**` (markdown
+   strikethrough + bold — raw ANSI color codes do NOT render in chat text
+   here, confirmed by testing; only the statusline script's own stdout
+   supports ANSI), one pair per line, closing `---`. No prose explanation
+   per mistake. If a caught mistake is a relapse (same wrong/correct pair as
+   before), say so in one short parenthetical (e.g. "de nuevo, 4ta vez") —
+   it's useful signal, not noise.
 2. At the very end of your response, on its own line each, append one PLAIN
    (no color codes, no extra text) tag per distinct mistake caught this turn:
    `EnglishLint: mistake | <wrong> | <correct> | <short rule>`
