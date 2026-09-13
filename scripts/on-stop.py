@@ -48,10 +48,11 @@ def load_state() -> dict:
         "migration": {"queue": [], "batch_size": 8, "last_import_date": None},
         "recent": [],
         "reviews_today": {"date": None, "passed": []},
+        "history": [],
     }
 
 
-RECENT_MAX = 5
+RECENT_MAX = 20
 
 
 def save_state(state: dict) -> None:
@@ -94,6 +95,39 @@ def run_daily_import(state: dict, today: date) -> None:
         card["next_review"] = today.isoformat()
         introduced += 1
     migration["last_import_date"] = today.isoformat()
+
+
+HISTORY_MAX_DAYS = 365
+
+
+def log_daily_snapshot(state: dict, today: date) -> None:
+    """Append one row/day to state['history'] so trend charts (mistakes
+    over time, mastery over time) become possible once a few days have
+    accumulated — nothing before today's first run of this function
+    existed, since individual cards never recorded when they were caught."""
+    history = state.setdefault("history", [])
+    today_str = today.isoformat()
+    if history and history[-1]["date"] == today_str:
+        history.pop()  # overwrite today's row instead of duplicating it
+
+    cards = state["cards"].values()
+    box_dist = {str(i): 0 for i in range(1, 6)}
+    for c in cards:
+        box_dist[str(c.get("box", 1))] += 1
+
+    history.append(
+        {
+            "date": today_str,
+            "points": state["points"]["total"],
+            "streak": state["streak"]["count"],
+            "active": sum(1 for c in cards if c.get("introduced")),
+            "mastered": box_dist["5"],
+            "queued": len(state.get("migration", {}).get("queue", [])),
+            "total_cards": len(state["cards"]),
+            "box_dist": box_dist,
+        }
+    )
+    del history[:-HISTORY_MAX_DAYS]
 
 
 def push_recent(state: dict, wrong: str, correct: str, kind: str) -> None:
@@ -171,6 +205,7 @@ def main() -> int:
             if card_id and outcome in ("pass", "fail"):
                 apply_review(state, today, card_id, outcome)
 
+    log_daily_snapshot(state, today)
     save_state(state)
     return 0
 
