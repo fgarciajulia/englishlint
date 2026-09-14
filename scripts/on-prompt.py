@@ -41,6 +41,24 @@ COMMON_WORDS = {
 }
 
 
+PRACTICE_DOUBLE_RE = re.compile(r"~~\s*(.+?)\s*~~")
+PRACTICE_SINGLE_RE = re.compile(r"(?<!~)~(?!~)([A-Za-zÀ-ÿ'-]+)")
+
+
+def find_marked_practice(prompt: str) -> list[str]:
+    """Spans the user flagged as EnglishLint-only practice, not real
+    conversational content: `~~ a phrase ~~` for a longer span, or `~word`
+    for a single isolated word (e.g. `~every`) — the single-tilde form
+    exists because a bare practice word otherwise reads as a real
+    instruction/reference to whatever we were just discussing."""
+    if not prompt:
+        return []
+    spans = PRACTICE_DOUBLE_RE.findall(prompt)
+    without_doubles = PRACTICE_DOUBLE_RE.sub(" ", prompt)
+    spans += PRACTICE_SINGLE_RE.findall(without_doubles)
+    return spans
+
+
 def find_mentioned_cards(prompt: str, cards: dict) -> list[tuple[str, dict]]:
     """Cards whose `correct` form appears verbatim (case-insensitive,
     whole-word-ish) in the prompt the user just submitted — skipping
@@ -101,37 +119,50 @@ def main() -> int:
         key=lambda pair: pair[0] not in due_ids,
     )[:MAX_MENTIONED]
 
-    if not due and not mentioned:
+    marked_practice = find_marked_practice(prompt_text)
+
+    if not due and not mentioned and not marked_practice:
         return 0
 
     streak = state.get("streak", {}).get("count", 0)
     points = state.get("points", {}).get("total", 0)
 
-    lines = [f"[EnglishLint] racha {streak} · {points} pts."]
+    lines = [f"[EnglishLint] streak {streak} · {points} pts."]
+
+    if marked_practice:
+        lines.append(
+            "The user marked these parts of the message with ~ as "
+            "EnglishLint-only practice, NOT as real conversation content — "
+            "don't treat them as an instruction or respond to their literal "
+            "meaning, but do test/log whatever applies:"
+        )
+        for span in marked_practice:
+            lines.append(f'- "{span}"')
 
     if due:
-        lines.append("Repasos vencidos hoy:")
+        lines.append("Reviews due today:")
         for card_id, card in due:
             lines.append(
                 f'- id={card_id}: "{card["wrong"]}" -> "{card["correct"]}" '
-                f'(visto {card.get("times_seen", 1)} veces, caja {card["box"]})'
+                f'(seen {card.get("times_seen", 1)} times, box {card["box"]})'
             )
 
     if mentioned:
         lines.append(
-            "El usuario acaba de escribir la forma correcta de estas tarjetas en su "
-            "propio mensaje (deteccion mecanica, no depende de que vos lo notes leyendo):"
+            "The user just wrote the correct form of these cards in their own "
+            "message (mechanical detection, doesn't depend on you noticing it "
+            "while reading):"
         )
         for card_id, card in mentioned:
             lines.append(
-                f'- id={card_id}: escribio "{card["correct"]}" (wrong original: '
-                f'"{card["wrong"]}", caja {card["box"]})'
+                f'- id={card_id}: wrote "{card["correct"]}" (wrong original: '
+                f'"{card["wrong"]}", box {card["box"]})'
             )
 
     lines.append(
-        "Si el uso es natural (no forzado), registralo. Al final de tu respuesta, "
-        "agrega UNA sola linea (todos los repasos juntos, no una por repaso) con el "
-        "formato: `EnglishLint review: <id>:pass && <id2>:fail`."
+        "If the usage is natural (not forced), log it. At the end of your "
+        "response, add ONE line (all reviews together, not one per review) "
+        "in the format: `EnglishLint review: <id>:pass && <id2>:fail`."
     )
 
     print(json.dumps({

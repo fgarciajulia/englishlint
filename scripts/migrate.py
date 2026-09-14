@@ -74,7 +74,7 @@ def main():
         cards[card_id] = {
             "wrong": wrong,
             "correct": correct,
-            "rule": "migrado del historial viejo",
+            "rule": "migrated from old history",
             "box": box_for_times(times),
             "next_review": None,
             "times_seen": times,
